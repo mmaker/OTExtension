@@ -10,19 +10,14 @@
 
 #include "baseOT.h"
 
-class AsharovLindell : public BaseOT
-{
-	public:
-	~AsharovLindell(){};
+class AsharovLindell : public BaseOT {
+  public:
+    ~AsharovLindell(){};
 
-	AsharovLindell(crypto* crypt, field_type ftype) :
-		BaseOT(crypt, ftype) {
-}
-;
-	void Receiver(uint32_t nSndVals, uint32_t nOTs, CBitVector& choices, channel* chan, BYTE* ret);
-	void Sender(uint32_t nSndVals, uint32_t nOTs, channel* chan, BYTE* ret);
-
-
+    AsharovLindell(crypto *crypt, field_type ftype) : BaseOT(crypt, ftype){};
+    void Receiver(uint32_t nSndVals, uint32_t nOTs, CBitVector &choices,
+                  channel *chan, BYTE *ret);
+    void Sender(uint32_t nSndVals, uint32_t nOTs, channel *chan, BYTE *ret);
 };
 
 #endif /* ASHAROVLINDELL_H_ */

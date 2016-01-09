@@ -286,17 +286,23 @@ public:
     friend Big operator>>(const Big&, int);
 
     friend BOOL operator<=(const Big& b1,const Big& b2)
-             {if (mr_compare(b1.fn,b2.fn)<=0) return TRUE; else return FALSE;}
+             {if (mr_compare(b1.fn,b2.fn)<=0) { return TRUE; } else { return FALSE;
+}}
     friend BOOL operator>=(const Big& b1,const Big& b2)
-             {if (mr_compare(b1.fn,b2.fn)>=0) return TRUE; else return FALSE;}
+             {if (mr_compare(b1.fn,b2.fn)>=0) { return TRUE; } else { return FALSE;
+}}
     friend BOOL operator==(const Big& b1,const Big& b2)
-             {if (mr_compare(b1.fn,b2.fn)==0) return TRUE; else return FALSE;}
+             {if (mr_compare(b1.fn,b2.fn)==0) { return TRUE; } else { return FALSE;
+}}
     friend BOOL operator!=(const Big& b1,const Big& b2)
-             {if (mr_compare(b1.fn,b2.fn)!=0) return TRUE; else return FALSE;}
+             {if (mr_compare(b1.fn,b2.fn)!=0) { return TRUE; } else { return FALSE;
+}}
     friend BOOL operator<(const Big& b1,const Big& b2)
-              {if (mr_compare(b1.fn,b2.fn)<0) return TRUE; else return FALSE;}
+              {if (mr_compare(b1.fn,b2.fn)<0) { return TRUE; } else { return FALSE;
+}}
     friend BOOL operator>(const Big& b1,const Big& b2)
-              {if (mr_compare(b1.fn,b2.fn)>0) return TRUE; else return FALSE;}
+              {if (mr_compare(b1.fn,b2.fn)>0) { return TRUE; } else { return FALSE;
+}}
 
     friend Big from_binary(int,char *);
     friend int to_binary(const Big&,int,char *,BOOL justify=FALSE);

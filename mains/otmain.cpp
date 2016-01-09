@@ -1,419 +1,461 @@
 #include "otmain.h"
 
+BOOL Init(crypto *crypt) {
+    m_vSocket = new CSocket(); //*) malloc(sizeof(CSocket) * m_nNumOTThreads);
 
-BOOL Init(crypto* crypt)
-{
-	m_vSocket = new CSocket();//*) malloc(sizeof(CSocket) * m_nNumOTThreads);
-
-	return TRUE;
+    return TRUE;
 }
 
-BOOL Cleanup()
-{
-	delete sndthread;
+BOOL Cleanup() {
+    delete sndthread;
 
-	//rcvthread->Wait();
+    // rcvthread->Wait();
 
-	delete rcvthread;
+    delete rcvthread;
 
-	//cout << "Cleaning" << endl;
-	delete m_vSocket;
-	//cout << "done" << endl;
-	return true;
+    // cout << "Cleaning" << endl;
+    delete m_vSocket;
+    // cout << "done" << endl;
+    return true;
 }
 
-
-BOOL Connect()
-{
-	bool bFail = FALSE;
-	uint64_t lTO = CONNECT_TIMEO_MILISEC;
+BOOL Connect() {
+    bool bFail = FALSE;
+    uint64_t lTO = CONNECT_TIMEO_MILISEC;
 
 #ifndef BATCH
-	cout << "Connecting to party "<< !m_nPID << ": " << m_nAddr << ", " << m_nPort << endl;
+    cout << "Connecting to party " << !m_nPID << ": " << m_nAddr << ", "
+         << m_nPort << endl;
 #endif
-	for(int k = 0; k >= 0 ; k--)
-	{
-		for( int i=0; i<RETRY_CONNECT; i++ )
-		{
-			if( !m_vSocket->Socket() )
-			{	
-				printf("Socket failure: ");
-				goto connect_failure; 
-			}
-			
-			if( m_vSocket->Connect( m_nAddr, m_nPort, lTO))
-			{
-				// send pid when connected
-				m_vSocket->Send( &k, sizeof(int) );
-		#ifndef BATCH
-				cout << " (" << !m_nPID << ") (" << k << ") connected" << endl;
-		#endif
-				if(k == 0) 
-				{
-					//cout << "connected" << endl;
-					return TRUE;
-				}
-				else
-				{
-					break;
-				}
-				SleepMiliSec(10);
-				m_vSocket->Close();
-			}
-			SleepMiliSec(20);
-			if(i+1 == RETRY_CONNECT)
-				goto server_not_available;
-		}
-	}
+    for (int k = 0; k >= 0; k--) {
+        for (int i = 0; i < RETRY_CONNECT; i++) {
+            if (!m_vSocket->Socket()) {
+                printf("Socket failure: ");
+                goto connect_failure;
+            }
+
+            if (m_vSocket->Connect(m_nAddr, m_nPort, lTO)) {
+                // send pid when connected
+                m_vSocket->Send(&k, sizeof(int));
+#ifndef BATCH
+                cout << " (" << !m_nPID << ") (" << k << ") connected" << endl;
+#endif
+                if (k == 0) {
+                    // cout << "connected" << endl;
+                    return TRUE;
+                } else {
+                    break;
+                }
+                SleepMiliSec(10);
+                m_vSocket->Close();
+            }
+            SleepMiliSec(20);
+            if (i + 1 == RETRY_CONNECT) {
+                goto server_not_available;
+            }
+        }
+    }
 server_not_available:
-	printf("Server not available: ");
+    printf("Server not available: ");
 connect_failure:
-	cout << " (" << !m_nPID << ") connection failed" << endl;
-	return FALSE;
+    cout << " (" << !m_nPID << ") connection failed" << endl;
+    return FALSE;
 }
 
-
-
-BOOL Listen()
-{
+BOOL Listen() {
 #ifndef BATCH
-	cout << "Listening: " << m_nAddr << ":" << m_nPort << ", with size: " << m_nNumOTThreads << endl;
+    cout << "Listening: " << m_nAddr << ":" << m_nPort
+         << ", with size: " << m_nNumOTThreads << endl;
 #endif
-	if( !m_vSocket->Socket() )
-	{
-		goto listen_failure;
-	}
-	if( !m_vSocket->Bind(m_nPort, m_nAddr) )
-		goto listen_failure;
-	if( !m_vSocket->Listen() )
-		goto listen_failure;
+    if (!m_vSocket->Socket()) {
+        goto listen_failure;
+    }
+    if (!m_vSocket->Bind(m_nPort, m_nAddr)) {
+        goto listen_failure;
+    }
+    if (!m_vSocket->Listen()) {
+        goto listen_failure;
+    }
 
-	for( int i = 0; i<1; i++ ) //twice the actual number, due to double sockets for OT
-	{
-		CSocket sock;
-		//cout << "New round! " << endl;
-		if( !m_vSocket->Accept(sock) )
-		{
-			cerr << "Error in accept" << endl;
-			goto listen_failure;
-		}
-					
-		UINT threadID;
-		sock.Receive(&threadID, sizeof(int));
+    for (int i = 0; i < 1;
+         i++) // twice the actual number, due to double sockets for OT
+    {
+        CSocket sock;
+        // cout << "New round! " << endl;
+        if (!m_vSocket->Accept(sock)) {
+            cerr << "Error in accept" << endl;
+            goto listen_failure;
+        }
 
-		if( threadID >= 1)
-		{
-			sock.Close();
-			i--;
-			continue;
-		}
+        UINT threadID;
+        sock.Receive(&threadID, sizeof(int));
 
-	#ifndef BATCH
-		cout <<  " (" << m_nPID <<") (" << threadID << ") connection accepted" << endl;
-	#endif
-		// locate the socket appropriately
-		m_vSocket->AttachFrom(sock);
-		sock.Detach();
-	}
+        if (threadID >= 1) {
+            sock.Close();
+            i--;
+            continue;
+        }
 
 #ifndef BATCH
-	cout << "Listening finished"  << endl;
+        cout << " (" << m_nPID << ") (" << threadID << ") connection accepted"
+             << endl;
 #endif
-	return TRUE;
+        // locate the socket appropriately
+        m_vSocket->AttachFrom(sock);
+        sock.Detach();
+    }
+
+#ifndef BATCH
+    cout << "Listening finished" << endl;
+#endif
+    return TRUE;
 
 listen_failure:
-	cout << "Listen failed" << endl;
-	return FALSE;
+    cout << "Listen failed" << endl;
+    return FALSE;
 }
 
-
-
-
-void InitOTSender(const char* address, int port, crypto* crypt)
-{
-	int nSndVals = 2;
+void InitOTSender(const char *address, int port, crypto *crypt) {
+    int nSndVals = 2;
 #ifdef OTTiming
-	timeval np_begin, np_end;
+    timeval np_begin, np_end;
 #endif
-	m_nPort = (USHORT) port;
-	m_nAddr = address;
-	
-	//Initialize values
-	Init(crypt);
-	
-	//Server listen
-	Listen();
+    m_nPort = (USHORT)port;
+    m_nAddr = address;
 
-	sndthread = new SndThread(m_vSocket);
-	rcvthread = new RcvThread(m_vSocket);
+    // Initialize values
+    Init(crypt);
 
-	rcvthread->Start();
-	sndthread->Start();
+    // Server listen
+    Listen();
 
-	switch(m_eProt) {
-		case ALSZ: sender = new ALSZOTExtSnd(nSndVals, crypt, rcvthread, sndthread, m_nBaseOTs, m_nChecks); break;
-		case IKNP: sender = new IKNPOTExtSnd(nSndVals, crypt, rcvthread, sndthread); break;
-		case NNOB: sender = new NNOBOTExtSnd(nSndVals, crypt, rcvthread, sndthread); break;
-		case KK: sender = new KKOTExtSnd(nSndVals, crypt, rcvthread, sndthread); break;
-		default: sender = new ALSZOTExtSnd(nSndVals, crypt, rcvthread, sndthread, m_nBaseOTs, m_nChecks); break;
-	}
+    sndthread = new SndThread(m_vSocket);
+    rcvthread = new RcvThread(m_vSocket);
 
-	if(m_bUseMinEntCorAssumption)
-		sender->EnableMinEntCorrRobustness();
-	sender->ComputeBaseOTs(m_eFType);
+    rcvthread->Start();
+    sndthread->Start();
+
+    switch (m_eProt) {
+    case ALSZ:
+        sender = new ALSZOTExtSnd(nSndVals, crypt, rcvthread, sndthread,
+                                  m_nBaseOTs, m_nChecks);
+        break;
+    case IKNP:
+        sender = new IKNPOTExtSnd(nSndVals, crypt, rcvthread, sndthread);
+        break;
+    case NNOB:
+        sender = new NNOBOTExtSnd(nSndVals, crypt, rcvthread, sndthread);
+        break;
+    case KK:
+        sender = new KKOTExtSnd(nSndVals, crypt, rcvthread, sndthread);
+        break;
+    default:
+        sender = new ALSZOTExtSnd(nSndVals, crypt, rcvthread, sndthread,
+                                  m_nBaseOTs, m_nChecks);
+        break;
+    }
+
+    if (m_bUseMinEntCorAssumption) {
+        sender->EnableMinEntCorrRobustness();
+    }
+    sender->ComputeBaseOTs(m_eFType);
 }
 
-void InitOTReceiver(const char* address, int port, crypto* crypt)
-{
-	int nSndVals = 2;
+void InitOTReceiver(const char *address, int port, crypto *crypt) {
+    int nSndVals = 2;
 
-	m_nPort = (USHORT) port;
-	m_nAddr = address;
+    m_nPort = (USHORT)port;
+    m_nAddr = address;
 
-	//Initialize values
-	Init(crypt);
-	
-	//Client connect
-	Connect();
+    // Initialize values
+    Init(crypt);
 
-	sndthread = new SndThread(m_vSocket);
-	rcvthread = new RcvThread(m_vSocket);
-	
-	rcvthread->Start();
-	sndthread->Start();
+    // Client connect
+    Connect();
 
-	switch(m_eProt) {
-		case ALSZ: receiver = new ALSZOTExtRec(nSndVals, crypt, rcvthread, sndthread, m_nBaseOTs, m_nChecks); break;
-		case IKNP: receiver = new IKNPOTExtRec(nSndVals, crypt, rcvthread, sndthread); break;
-		case NNOB: receiver = new NNOBOTExtRec(nSndVals, crypt, rcvthread, sndthread); break;
-		case KK: receiver = new KKOTExtRec(nSndVals, crypt, rcvthread, sndthread); break;
-		default: receiver = new ALSZOTExtRec(nSndVals, crypt, rcvthread, sndthread, m_nBaseOTs, m_nChecks); break;
-	}
+    sndthread = new SndThread(m_vSocket);
+    rcvthread = new RcvThread(m_vSocket);
 
+    rcvthread->Start();
+    sndthread->Start();
 
-	if(m_bUseMinEntCorAssumption)
-		receiver->EnableMinEntCorrRobustness();
-	receiver->ComputeBaseOTs(m_eFType);
+    switch (m_eProt) {
+    case ALSZ:
+        receiver = new ALSZOTExtRec(nSndVals, crypt, rcvthread, sndthread,
+                                    m_nBaseOTs, m_nChecks);
+        break;
+    case IKNP:
+        receiver = new IKNPOTExtRec(nSndVals, crypt, rcvthread, sndthread);
+        break;
+    case NNOB:
+        receiver = new NNOBOTExtRec(nSndVals, crypt, rcvthread, sndthread);
+        break;
+    case KK:
+        receiver = new KKOTExtRec(nSndVals, crypt, rcvthread, sndthread);
+        break;
+    default:
+        receiver = new ALSZOTExtRec(nSndVals, crypt, rcvthread, sndthread,
+                                    m_nBaseOTs, m_nChecks);
+        break;
+    }
+
+    if (m_bUseMinEntCorAssumption) {
+        receiver->EnableMinEntCorrRobustness();
+    }
+    receiver->ComputeBaseOTs(m_eFType);
 }
 
+BOOL ObliviouslySend(CBitVector &X1, CBitVector &X2, int numOTs, int bitlength,
+                     snd_ot_flavor stype, rec_ot_flavor rtype, crypto *crypt) {
+    bool success = FALSE;
 
-BOOL ObliviouslySend(CBitVector& X1, CBitVector& X2, int numOTs, int bitlength,
-		snd_ot_flavor stype, rec_ot_flavor rtype, crypto* crypt)
-{
-	bool success = FALSE;
+    m_vSocket->reset_bytes_sent();
+    m_vSocket->reset_bytes_received();
+    int nSndVals = 2; // Perform 1-out-of-2 OT
+    timeval ot_begin, ot_end;
 
-	m_vSocket->reset_bytes_sent();
-	m_vSocket->reset_bytes_received();
-	int nSndVals = 2; //Perform 1-out-of-2 OT
-	timeval ot_begin, ot_end;
-
-	
-	gettimeofday(&ot_begin, NULL);
-	// Execute OT sender routine 	
-	success = sender->send((uint32_t) numOTs, (uint32_t) bitlength, &X1, &X2, stype, rtype, m_nNumOTThreads, m_fMaskFct);
-	gettimeofday(&ot_end, NULL);
+    gettimeofday(&ot_begin, NULL);
+    // Execute OT sender routine
+    success = sender->send((uint32_t)numOTs, (uint32_t)bitlength, &X1, &X2,
+                           stype, rtype, m_nNumOTThreads, m_fMaskFct);
+    gettimeofday(&ot_end, NULL);
 
 #ifndef BATCH
-	printf("Time spent:\t%f\n", getMillies(ot_begin, ot_end) + rndgentime);
-	cout << "Sent:\t\t" << m_vSocket->get_bytes_sent() << " bytes" << endl;
-	cout << "Received:\t" << m_vSocket->get_bytes_received() <<" bytes" << endl;
+    printf("Time spent:\t%f\n", getMillies(ot_begin, ot_end) + rndgentime);
+    cout << "Sent:\t\t" << m_vSocket->get_bytes_sent() << " bytes" << endl;
+    cout << "Received:\t" << m_vSocket->get_bytes_received() << " bytes"
+         << endl;
 #else
-	cout << getMillies(ot_begin, ot_end) + rndgentime << "\t" << m_vSocket->get_bytes_sent() << "\t" << m_vSocket->get_bytes_received() << endl;
+    cout << getMillies(ot_begin, ot_end) + rndgentime << "\t"
+         << m_vSocket->get_bytes_sent() << "\t"
+         << m_vSocket->get_bytes_received() << endl;
 #endif
 
-
-	return success;
+    return success;
 }
 
-BOOL ObliviouslyReceive(CBitVector& choices, CBitVector& ret, int numOTs, int bitlength,
-		snd_ot_flavor stype, rec_ot_flavor rtype, crypto* crypt)
-{
-	bool success = FALSE;
+BOOL ObliviouslyReceive(CBitVector &choices, CBitVector &ret, int numOTs,
+                        int bitlength, snd_ot_flavor stype, rec_ot_flavor rtype,
+                        crypto *crypt) {
+    bool success = FALSE;
 
-	m_vSocket->reset_bytes_sent();
-	m_vSocket->reset_bytes_received();
+    m_vSocket->reset_bytes_sent();
+    m_vSocket->reset_bytes_received();
 
-
-	timeval ot_begin, ot_end;
-	gettimeofday(&ot_begin, NULL);
-	// Execute OT receiver routine 	
-	success = receiver->receive(numOTs, bitlength, &choices, &ret, stype, rtype, m_nNumOTThreads, m_fMaskFct);
-	gettimeofday(&ot_end, NULL);
+    timeval ot_begin, ot_end;
+    gettimeofday(&ot_begin, NULL);
+    // Execute OT receiver routine
+    success = receiver->receive(numOTs, bitlength, &choices, &ret, stype, rtype,
+                                m_nNumOTThreads, m_fMaskFct);
+    gettimeofday(&ot_end, NULL);
 
 #ifndef BATCH
-	printf("Time spent:\t%f\n", getMillies(ot_begin, ot_end) + rndgentime);
+    printf("Time spent:\t%f\n", getMillies(ot_begin, ot_end) + rndgentime);
 
-	cout << "Sent:\t\t" << m_vSocket->get_bytes_sent() << " bytes" << endl;
-	cout << "Received:\t" << m_vSocket->get_bytes_received() <<" bytes" << endl;
+    cout << "Sent:\t\t" << m_vSocket->get_bytes_sent() << " bytes" << endl;
+    cout << "Received:\t" << m_vSocket->get_bytes_received() << " bytes"
+         << endl;
 #else
-	cout << getMillies(ot_begin, ot_end) + rndgentime << "\t" << m_vSocket->get_bytes_sent() << "\t" << m_vSocket->get_bytes_received() << endl;
+    cout << getMillies(ot_begin, ot_end) + rndgentime << "\t"
+         << m_vSocket->get_bytes_sent() << "\t"
+         << m_vSocket->get_bytes_received() << endl;
 #endif
-	
 
-	return success;
+    return success;
 }
 
+int main(int argc, char **argv) {
+    string *addr = new string("127.0.0.1");
+    uint16_t port = 7766;
 
-int main(int argc, char** argv)
-{
-	string* addr = new string("127.0.0.1");
-	uint16_t port = 7766;
+    // Determines whether the program is executed in the sender or receiver role
+    m_nPID = atoi(argv[1]);
+    // the number of OTs that are performed. Has to be initialized to a certain
+    // minimum size due to
+    uint64_t numOTs = 1000000;
+    // bitlength of the values that are transferred - NOTE that when bitlength
+    // is not 1 or a multiple of 8, the endianness has to be observed
+    uint32_t bitlength = 8;
 
-	//Determines whether the program is executed in the sender or receiver role
-	m_nPID = atoi(argv[1]);
-	//the number of OTs that are performed. Has to be initialized to a certain minimum size due to
-	uint64_t numOTs = 1000000;
-	//bitlength of the values that are transferred - NOTE that when bitlength is not 1 or a multiple of 8, the endianness has to be observed
-	uint32_t bitlength = 8;
+    uint32_t runs = 1;
 
-	uint32_t runs = 1;
+    // Use elliptic curve cryptography in the base-OTs
+    m_eFType = ECC_FIELD;
+    // The symmetric security parameter (80, 112, 128)
+    uint32_t m_nSecParam = 128;
 
-	//Use elliptic curve cryptography in the base-OTs
-	m_eFType = ECC_FIELD;
-	//The symmetric security parameter (80, 112, 128)
-	uint32_t m_nSecParam = 128;
+    // Number of threads that will be used in OT extension
+    m_nNumOTThreads = 1;
 
-	//Number of threads that will be used in OT extension
-	m_nNumOTThreads = 1;
+    // Specifies which OT flavor should be used
+    snd_ot_flavor stype = Snd_OT;
+    rec_ot_flavor rtype = Rec_OT;
 
-	//Specifies which OT flavor should be used
-	snd_ot_flavor stype = Snd_OT;
-	rec_ot_flavor rtype = Rec_OT;
+    m_nBaseOTs = 190;
+    m_nChecks = 380;
 
+    m_bUseMinEntCorAssumption = false;
 
-	m_nBaseOTs = 190;
-	m_nChecks = 380;
+    m_eProt = IKNP;
 
-	m_bUseMinEntCorAssumption = false;
+    read_test_options(&argc, &argv, &m_nPID, &numOTs, &bitlength, &m_nSecParam,
+                      addr, &port, &m_eProt, &stype, &rtype, &m_nNumOTThreads,
+                      &m_nBaseOTs, &m_nChecks, &m_bUseMinEntCorAssumption,
+                      &runs);
 
-	m_eProt = IKNP;
+    /*int32_t read_test_options(int32_t* argcp, char*** argvp, uint32_t* role,
+       uint64_t* numots, uint32_t* bitlen,
+                    uint32_t* secparam, string* address, uint16_t* port,
+       ot_ext_prot* protocol, snd_ot_flavor* sndflav,
+                    rec_ot_flavor* rcvflav, uint32_t* nthreads, uint32_t*
+       nbaseots, uint32_t* nchecks, bool* usemecr, uint32_t* runs) {*/
 
-	read_test_options(&argc, &argv, &m_nPID, &numOTs, &bitlength, &m_nSecParam, addr, &port, &m_eProt, &stype, &rtype,
-			&m_nNumOTThreads, &m_nBaseOTs, &m_nChecks, &m_bUseMinEntCorAssumption, &runs);
+    crypto *crypt = new crypto(m_nSecParam, (uint8_t *)m_cConstSeed[m_nPID]);
 
-	/*int32_t read_test_options(int32_t* argcp, char*** argvp, uint32_t* role, uint64_t* numots, uint32_t* bitlen,
-			uint32_t* secparam, string* address, uint16_t* port, ot_ext_prot* protocol, snd_ot_flavor* sndflav,
-			rec_ot_flavor* rcvflav, uint32_t* nthreads, uint32_t* nbaseots, uint32_t* nchecks, bool* usemecr, uint32_t* runs) {*/
+    if (m_nPID == SERVER_ID) // Play as OT sender
+    {
+        InitOTSender(addr->c_str(), port, crypt);
 
-	crypto *crypt = new crypto(m_nSecParam, (uint8_t*) m_cConstSeed[m_nPID]);
+        CBitVector delta, X1, X2;
 
+        // The masking function with which the values that are sent in the last
+        // communication step are processed
+        m_fMaskFct = new XORMasking(bitlength, delta);
 
-	if(m_nPID == SERVER_ID) //Play as OT sender
-	{
-		InitOTSender(addr->c_str(), port, crypt);
+        // creates delta as an array with "numOTs" entries of "bitlength"
+        // bit-values and fills delta with random values
+        delta.Create(numOTs, bitlength, crypt);
 
-		CBitVector delta, X1, X2;
-
-		//The masking function with which the values that are sent in the last communication step are processed
-		m_fMaskFct = new XORMasking(bitlength, delta);
-
-		//creates delta as an array with "numOTs" entries of "bitlength" bit-values and fills delta with random values
-		delta.Create(numOTs, bitlength, crypt);
-
-		//Create X1 and X2 as two arrays with "numOTs" entries of "bitlength" bit-values and resets them to 0
-		X1.Create(numOTs, bitlength, crypt);
-		X2.Create(numOTs, bitlength, crypt);
+        // Create X1 and X2 as two arrays with "numOTs" entries of "bitlength"
+        // bit-values and resets them to 0
+        X1.Create(numOTs, bitlength, crypt);
+        X2.Create(numOTs, bitlength, crypt);
 
 #ifndef BATCH
-		cout << getProt(m_eProt) << " Sender performing " << numOTs << " " << getSndFlavor(stype) << " / " <<
-				getRecFlavor(rtype) << " extensions on " << bitlength << " bit elements with " <<	m_nNumOTThreads << " threads, " <<
-				getFieldType(m_eFType) << " and" << (m_bUseMinEntCorAssumption ? "": " no" ) << " min-ent-corr-robustness " <<
-				runs << " times" << endl;
+        cout << getProt(m_eProt) << " Sender performing " << numOTs << " "
+             << getSndFlavor(stype) << " / " << getRecFlavor(rtype)
+             << " extensions on " << bitlength << " bit elements with "
+             << m_nNumOTThreads << " threads, " << getFieldType(m_eFType)
+             << " and" << (m_bUseMinEntCorAssumption ? "" : " no")
+             << " min-ent-corr-robustness " << runs << " times" << endl;
 #endif
-		for(uint32_t i = 0; i < runs; i++) {
-			ObliviouslySend(X1, X2, numOTs, bitlength, stype, rtype, crypt);
-		}
-	}
-	else //Play as OT receiver
-	{
-		InitOTReceiver(addr->c_str(), port, crypt);
+        for (uint32_t i = 0; i < runs; i++) {
+            ObliviouslySend(X1, X2, numOTs, bitlength, stype, rtype, crypt);
+        }
+    } else // Play as OT receiver
+    {
+        InitOTReceiver(addr->c_str(), port, crypt);
 
-		CBitVector choices, response;
+        CBitVector choices, response;
 
-		//The masking function with which the values that are sent in the last communication step are processed
-		m_fMaskFct = new XORMasking(bitlength);
+        // The masking function with which the values that are sent in the last
+        // communication step are processed
+        m_fMaskFct = new XORMasking(bitlength);
 
-		//Create the bitvector choices as a bitvector with numOTs entries
-		choices.Create(numOTs, crypt);
+        // Create the bitvector choices as a bitvector with numOTs entries
+        choices.Create(numOTs, crypt);
 
-		//Pre-generate the respose vector for the results
-		response.Create(numOTs, bitlength);
-		response.Reset();
+        // Pre-generate the respose vector for the results
+        response.Create(numOTs, bitlength);
+        response.Reset();
 
-		/* 
-		 * The inputs of the receiver in G_OT, C_OT and R_OT are the same. The only difference is the version
-		 * variable that has to match the version of the sender. 
-		*/
+/*
+ * The inputs of the receiver in G_OT, C_OT and R_OT are the same. The only
+ * difference is the version
+ * variable that has to match the version of the sender.
+*/
 #ifndef BATCH
-		cout << getProt(m_eProt) << " Receiver performing " << numOTs << " " << getSndFlavor(stype) << " / " <<
-				getRecFlavor(rtype) << " extensions on " << bitlength << " bit elements with " <<	m_nNumOTThreads << " threads, " <<
-				getFieldType(m_eFType) << " and" << (m_bUseMinEntCorAssumption ? "": " no" ) << " min-ent-corr-robustness " <<
-				runs << " times" << endl;
+        cout << getProt(m_eProt) << " Receiver performing " << numOTs << " "
+             << getSndFlavor(stype) << " / " << getRecFlavor(rtype)
+             << " extensions on " << bitlength << " bit elements with "
+             << m_nNumOTThreads << " threads, " << getFieldType(m_eFType)
+             << " and" << (m_bUseMinEntCorAssumption ? "" : " no")
+             << " min-ent-corr-robustness " << runs << " times" << endl;
 #endif
-		for(uint32_t i = 0; i < runs; i++) {
-			ObliviouslyReceive(choices, response, numOTs, bitlength, stype, rtype, crypt);
-		}
-	}
+        for (uint32_t i = 0; i < runs; i++) {
+            ObliviouslyReceive(choices, response, numOTs, bitlength, stype,
+                               rtype, crypt);
+        }
+    }
 
-	//Cleanup();
-	delete crypt;
+    // Cleanup();
+    delete crypt;
 
-	return 1;
+    return 1;
 }
 
+int32_t read_test_options(int32_t *argcp, char ***argvp, uint32_t *role,
+                          uint64_t *numots, uint32_t *bitlen,
+                          uint32_t *secparam, string *address, uint16_t *port,
+                          ot_ext_prot *protocol, snd_ot_flavor *sndflav,
+                          rec_ot_flavor *rcvflav, uint32_t *nthreads,
+                          uint32_t *nbaseots, uint32_t *nchecks, bool *usemecr,
+                          uint32_t *runs) {
+    uint32_t int_port = 0, int_prot = 0, int_snd_flav = 0, int_rec_flav = 0;
 
-int32_t read_test_options(int32_t* argcp, char*** argvp, uint32_t* role, uint64_t* numots, uint32_t* bitlen,
-		uint32_t* secparam, string* address, uint16_t* port, ot_ext_prot* protocol, snd_ot_flavor* sndflav,
-		rec_ot_flavor* rcvflav, uint32_t* nthreads, uint32_t* nbaseots, uint32_t* nchecks, bool* usemecr, uint32_t* runs) {
+    parsing_ctx options[] = {
+        {(void *)role, T_NUM, 'r', "Role: 0/1", true, false},
+        {(void *)numots, T_NUM, 'n', "Number of OTs, default 10^6", false,
+         false},
+        {(void *)bitlen, T_NUM, 'b', "Bit-length of elements in OTs, default 8",
+         false, false},
+        {(void *)secparam, T_NUM, 's', "Symmetric Security Bits, default: 128",
+         false, false},
+        {(void *)address, T_STR, 'a', "IP-address, default: localhost", false,
+         false},
+        {(void *)&int_port, T_NUM, 'p', "Port, default: 7766", false, false},
+        {(void *)&int_prot, T_NUM, 'o',
+         "Protocol, 0: IKNP, 1: ALSZ, 2: NNOB, 3: KK, default: IKNP", false,
+         false},
+        {(void *)&int_snd_flav, T_NUM, 'f', "Sender OT Functionality, 0: OT, "
+                                            "1: C_OT, 2: Snd_R_OT, 3: GC_OT, "
+                                            "default: OT",
+         false, false},
+        {(void *)&int_rec_flav, T_NUM, 'v',
+         "Receiver OT Functionality, 0: OT, 1: Rec_R_OT, default: OT", false,
+         false},
+        {(void *)nthreads, T_NUM, 't', "Number of threads, default 1", false,
+         false},
+        {(void *)nbaseots, T_NUM, 'e',
+         "Number of baseots for ALSZ, default 190", false, false},
+        {(void *)nchecks, T_NUM, 'c', "Number of checks for ALSZ, default 380",
+         false, false},
+        {(void *)usemecr, T_FLAG, 'm',
+         "Use Min-Entropy Correlation-Robustness Assumption, default: false",
+         false, false},
+        {(void *)runs, T_NUM, 'u', "Number of repetitions, default: 1", false,
+         false}};
 
-	uint32_t int_port = 0, int_prot = 0, int_snd_flav = 0, int_rec_flav = 0;
+    if (!parse_options(argcp, argvp, options,
+                       sizeof(options) / sizeof(parsing_ctx))) {
+        print_usage(*argvp[0], options, sizeof(options) / sizeof(parsing_ctx));
+        cout << "Exiting" << endl;
+        exit(0);
+    }
 
-	parsing_ctx options[] = {
-			{ (void*) role, T_NUM, 'r', "Role: 0/1", true, false },
-			{ (void*) numots, T_NUM, 'n', "Number of OTs, default 10^6", false, false },
-			{ (void*) bitlen, T_NUM, 'b', "Bit-length of elements in OTs, default 8", false, false },
-			{ (void*) secparam, T_NUM, 's', "Symmetric Security Bits, default: 128", false, false },
-			{ (void*) address, T_STR, 'a', "IP-address, default: localhost", false, false },
-			{ (void*) &int_port, T_NUM, 'p', "Port, default: 7766", false, false },
-			{ (void*) &int_prot, T_NUM, 'o', "Protocol, 0: IKNP, 1: ALSZ, 2: NNOB, 3: KK, default: IKNP", false, false },
-			{ (void*) &int_snd_flav, T_NUM, 'f', "Sender OT Functionality, 0: OT, 1: C_OT, 2: Snd_R_OT, 3: GC_OT, default: OT", false, false },
-			{ (void*) &int_rec_flav, T_NUM, 'v', "Receiver OT Functionality, 0: OT, 1: Rec_R_OT, default: OT", false, false },
-			{ (void*) nthreads, T_NUM, 't', "Number of threads, default 1", false, false },
-			{ (void*) nbaseots, T_NUM, 'e', "Number of baseots for ALSZ, default 190", false, false },
-			{ (void*) nchecks, T_NUM, 'c', "Number of checks for ALSZ, default 380", false, false },
-			{ (void*) usemecr, T_FLAG, 'm', "Use Min-Entropy Correlation-Robustness Assumption, default: false", false, false },
-			{ (void*) runs, T_NUM, 'u', "Number of repetitions, default: 1", false, false }
-	};
+    assert(*role < 2);
 
-	if (!parse_options(argcp, argvp, options, sizeof(options) / sizeof(parsing_ctx))) {
-		print_usage(*argvp[0], options, sizeof(options) / sizeof(parsing_ctx));
-		cout << "Exiting" << endl;
-		exit(0);
-	}
+    if (int_port != 0) {
+        assert(int_port < 1 << (sizeof(uint16_t) * 8));
+        *port = (uint16_t)int_port;
+    }
 
-	assert(*role < 2);
+    if (int_prot != 0) {
+        assert(int_prot > 0 && int_prot < PROT_LAST);
+        *protocol = (ot_ext_prot)int_prot;
+    }
 
-	if (int_port != 0) {
-		assert(int_port < 1 << (sizeof(uint16_t) * 8));
-		*port = (uint16_t) int_port;
-	}
+    if (int_snd_flav != 0) {
+        assert(int_snd_flav > 0 && int_snd_flav < Snd_OT_LAST);
+        *sndflav = (snd_ot_flavor)int_snd_flav;
+    }
 
-	if (int_prot != 0) {
-		assert(int_prot > 0 && int_prot < PROT_LAST);
-		*protocol = (ot_ext_prot) int_prot;
-	}
+    if (int_rec_flav != 0) {
+        assert(int_rec_flav > 0 && int_rec_flav < Rec_OT_LAST);
+        *rcvflav = (rec_ot_flavor)int_rec_flav;
+    }
 
-	if (int_snd_flav != 0) {
-		assert(int_snd_flav > 0 && int_snd_flav < Snd_OT_LAST);
-		*sndflav = (snd_ot_flavor) int_snd_flav;
-	}
+    // delete options;
 
-	if (int_rec_flav != 0) {
-		assert(int_rec_flav > 0 && int_rec_flav < Rec_OT_LAST);
-		*rcvflav = (rec_ot_flavor) int_rec_flav;
-	}
-
-	//delete options;
-
-	return 1;
+    return 1;
 }

@@ -25,50 +25,56 @@
 
 using namespace std;
 
-USHORT		m_nPort = 7766;
-const char* m_nAddr ;// = "localhost";
+USHORT m_nPort = 7766;
+const char *m_nAddr; // = "localhost";
 
-static const char* m_cConstSeed[2] = {"437398417012387813714564100", "15657566154164561"};
-
+static const char *m_cConstSeed[2] = {"437398417012387813714564100",
+                                      "15657566154164561"};
 
 struct test_options {
-	ot_ext_prot	prot;
-	uint64_t numots;
-	uint64_t bitlen;
-	snd_ot_flavor sflavor;
-	rec_ot_flavor rflavor;
-	uint32_t nthreads;
-	field_type ftype;
-	bool usemecr;
+    ot_ext_prot prot;
+    uint64_t numots;
+    uint64_t bitlen;
+    snd_ot_flavor sflavor;
+    rec_ot_flavor rflavor;
+    uint32_t nthreads;
+    field_type ftype;
+    bool usemecr;
 };
 
-test_options* tests;
+test_options *tests;
 uint32_t m_nTests;
 uint32_t gen_tests;
 uint32_t m_nPID;
 
-void recursive_assign_test_params(uint32_t* max, uint32_t depth, test_options** tops, uint32_t max_depth);
-void assign_param(uint32_t ctr, uint32_t depth, test_options* tops);
-
+void recursive_assign_test_params(uint32_t *max, uint32_t depth,
+                                  test_options **tops, uint32_t max_depth);
+void assign_param(uint32_t ctr, uint32_t depth, test_options *tops);
 
 BOOL Init();
 BOOL Cleanup();
 BOOL Connect();
 BOOL Listen();
 
-void InitSender(const char* address, int port);
-void InitReceiver(const char* address, int port);
+void InitSender(const char *address, int port);
+void InitReceiver(const char *address, int port);
 
-OTExtSnd* InitOTExtSnd(ot_ext_prot m_eProt, uint32_t nbaseots, uint32_t nchecks, bool enablemecr, field_type ftype, crypto* crypt);
-OTExtRec* InitOTExtRec(ot_ext_prot m_eProt, uint32_t nbaseots, uint32_t nchecks, bool enablemecr, field_type ftype, crypto* crypt);
+OTExtSnd *InitOTExtSnd(ot_ext_prot m_eProt, uint32_t nbaseots, uint32_t nchecks,
+                       bool enablemecr, field_type ftype, crypto *crypt);
+OTExtRec *InitOTExtRec(ot_ext_prot m_eProt, uint32_t nbaseots, uint32_t nchecks,
+                       bool enablemecr, field_type ftype, crypto *crypt);
 
-void run_test_sender(uint32_t numots, uint32_t bitlength, snd_ot_flavor stype, rec_ot_flavor rtype, uint32_t numthreads, crypto* crypt, OTExtSnd* sender);
-void run_test_receiver(uint32_t numots, uint32_t bitlength, snd_ot_flavor stype, rec_ot_flavor rtype, uint32_t numthreads, crypto* crypt, OTExtRec* receiver);
+void run_test_sender(uint32_t numots, uint32_t bitlength, snd_ot_flavor stype,
+                     rec_ot_flavor rtype, uint32_t numthreads, crypto *crypt,
+                     OTExtSnd *sender);
+void run_test_receiver(uint32_t numots, uint32_t bitlength, snd_ot_flavor stype,
+                       rec_ot_flavor rtype, uint32_t numthreads, crypto *crypt,
+                       OTExtRec *receiver);
 
 // Network Communication
-CSocket* m_vSocket;
+CSocket *m_vSocket;
 
-SndThread* sndthread;
-RcvThread* rcvthread;
+SndThread *sndthread;
+RcvThread *rcvthread;
 
 #endif

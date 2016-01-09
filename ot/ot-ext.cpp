@@ -6,7 +6,3 @@
  */
 
 #include "ot-ext.h"
-
-
-
-

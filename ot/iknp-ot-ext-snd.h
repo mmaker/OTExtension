@@ -11,29 +11,25 @@
 #include "ot-ext-snd.h"
 
 class IKNPOTExtSnd : public OTExtSnd {
+  public:
+    IKNPOTExtSnd(uint32_t nSndVals, crypto *crypt, RcvThread *rcvthread,
+                 SndThread *sndthread) {
+        InitSnd(nSndVals, crypt, rcvthread, sndthread,
+                crypt->get_seclvl().symbits);
+    };
 
-public:
-	IKNPOTExtSnd(uint32_t nSndVals, crypto* crypt, RcvThread* rcvthread, SndThread* sndthread) {
-		InitSnd(nSndVals, crypt, rcvthread, sndthread, crypt->get_seclvl().symbits);
-	}
-	;
+    ~IKNPOTExtSnd() {
+        CleanupIKNP();
+        CleanupSender();
+        Cleanup();
+    };
 
+    void CleanupIKNP() {
+        // TODO
+    }
 
-	~IKNPOTExtSnd() {
-		CleanupIKNP();
-		CleanupSender();
-		Cleanup();
-	}
-	;
-
-	void CleanupIKNP() {
-		//TODO
-	}
-
-	BOOL sender_routine(uint32_t threadid, uint64_t numOTs);
-	void ComputeBaseOTs(field_type ftype);
+    BOOL sender_routine(uint32_t threadid, uint64_t numOTs);
+    void ComputeBaseOTs(field_type ftype);
 };
-
-
 
 #endif /* IKNP_OT_EXT_SENDER_H_ */
